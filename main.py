@@ -26,10 +26,10 @@ df_road = pd.read_csv('road.csv', encoding='utf-8')  # 도로 정보
 data_full = pd.read_csv('data.csv', encoding='utf-8')  # 전체 데이터
 
 # 모델 및 스케일러 로드
-with open("./random_forest_model.pkl", "rb") as file:
+with open("./rf_model.pkl_2", "rb") as file:
     rf_model = pickle.load(file)
 
-with open("./scaler.pkl", "rb") as file:
+with open("./scaler.pkl_2", "rb") as file:
     loaded_scaler = pickle.load(file)
 
 # 사분위수 기반 위험도 분류
@@ -43,7 +43,7 @@ def categorize(value):
     elif value <= quantiles[0.75]:
         return '고위험'
     else:
-        return '매우 고위험'
+        return '매우고위험'
 
 # 거리 계산 함수
 def haversine_vectorized(lat1, lon1, lat2, lon2):
@@ -78,21 +78,23 @@ def find_nearest_road(lat, lon, df_road):
         df_road.iloc[nearest_idx]['기울기']
     )
 
-def calculate_all_metrics(lat, lon):
+def calculate_all_metrics(lat, lon, df_habitat, df_corridor, df_river, df_road, radius=5.0):
     habitat_distance = calculate_shortest_distance(lat, lon, df_habitat)
-    habitat_count = count_within_radius_vectorized(lat, lon, df_habitat['위도'], df_habitat['경도'])
-    
+    habitat_count = count_within_radius_vectorized(lat, lon, df_habitat['위도'], df_habitat['경도'], radius)
+ 
     corridor_distance = calculate_shortest_distance(lat, lon, df_corridor)
-    corridor_count = count_within_radius_vectorized(lat, lon, df_corridor['위도'], df_corridor['경도'])
-    
+    corridor_count = count_within_radius_vectorized(lat, lon, df_corridor['위도'], df_corridor['경도'], radius)
+ 
     river_distance = calculate_river_distance(lat, lon, df_river)
-    river_start_count = count_within_radius_vectorized(lat, lon, df_river['시점위치(위도)'], df_river['시점위치(경도)'])
-    river_end_count = count_within_radius_vectorized(lat, lon, df_river['종점위치(위도)'], df_river['종점위치(경도)'])
+    river_start_count = count_within_radius_vectorized(lat, lon, df_river['시점위치(위도)'], df_river['시점위치(경도)'], radius)
+    river_end_count = count_within_radius_vectorized(lat, lon, df_river['종점위치(위도)'], df_river['종점위치(경도)'], radius)
     river_count = river_start_count + river_end_count
-    
+ 
     avg_traffic, avg_speed, slope = find_nearest_road(lat, lon, df_road)
-
+ 
     return {
+        '위도': lat,
+        '경도': lon,
         '서식지(최단거리)': habitat_distance,
         '생태통로(최단거리)': corridor_distance,
         '하천(최단거리)': river_distance,
@@ -104,14 +106,15 @@ def calculate_all_metrics(lat, lon):
         '기울기': slope
     }
 
+
 # 예측 API (GET 방식)
 @app.get("/predict")
 def predict(lat: float = Query(...), lon: float = Query(...)):
     # 거리 및 환경 요소 계산
-    result = calculate_all_metrics(lat, lon)
+    result = calculate_all_metrics(lat, lon,df_habitat=df_habitat, df_corridor=df_corridor,df_river=df_river,df_road=df_road)
 
     # 입력 데이터 변환
-    input_data = np.array([list(result.values()) + [lat, lon]]).reshape(1, -1)
+    input_data = np.array([list(result.values())]).reshape(1, -1)
     feature_names = ['위도', '경도', '서식지(최단거리)', '생태통로(최단거리)', '하천(최단거리)', 
                      '서식지 개수(5km)', '생태통로 개수(5km)', '하천 개수(5km)', '평균 총차량수', 
                      '평균 속도', '기울기']
