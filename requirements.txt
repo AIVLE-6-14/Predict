@@ -6,7 +6,6 @@ fastapi==0.115.7
 h11==0.14.0
 idna==3.10
 joblib==1.4.2
-numpy==2.2.2
 pandas==2.2.3
 pickle-mixin==1.0.2
 pydantic==2.10.5
@@ -14,7 +13,7 @@ pydantic_core==2.27.2
 python-dateutil==2.9.0.post0
 pytz==2024.2
 scikit-learn==1.6.1
-scipy==1.15.1
+
 setuptools==75.1.0
 shapely==2.0.6
 six==1.17.0
